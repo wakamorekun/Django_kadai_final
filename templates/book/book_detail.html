@@ -1,0 +1,237 @@
+{% extends 'base.html' %}
+
+{% block title %}
+  {{ Shelf.title }}
+{% endblock %}
+{% block h1 %}
+  書籍詳細
+{% endblock %}
+
+{% block content %}
+  <div class="row">
+    <!-- メインコンテンツ -->
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-body">
+          <div class="row">
+            <!-- 書籍画像 -->
+            <div class="col-md-4">
+              {% if Shelf.thumbnail %}
+                <img src="{{ Shelf.thumbnail.url }}" class="img-fluid rounded" alt="{{ Shelf.title }}">
+              {% else %}
+                <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 300px;">
+                  <i class="fas fa-book fa-4x text-muted"></i>
+                </div>
+              {% endif %}
+            </div>
+            
+            <!-- 書籍情報 -->
+            <div class="col-md-8">
+              <div class="d-flex justify-content-between align-items-start mb-3">
+                <h2 class="card-title book-title">{{ Shelf.title }}</h2>
+                {% if user.is_authenticated %}
+                  <button class="favorite-btn {% if is_favorited %}active{% else %}inactive{% endif %}" 
+                          data-book-id="{{ Shelf.id }}" 
+                          onclick="toggleFavorite({{ Shelf.id }})">
+                    {% if is_favorited %}
+                      <i class="fas fa-heart"></i>
+                    {% else %}
+                      <i class="far fa-heart"></i>
+                    {% endif %}
+                  </button>
+                {% endif %}
+              </div>
+              
+              <span class="category-badge mb-3">{{ Shelf.get_category_display }}</span>
+              
+              <div class="rating-stars mb-3">
+                {% for i in "12345" %}
+                  {% if forloop.counter <= Shelf.get_average_rating %}
+                    <i class="fas fa-star"></i>
+                  {% else %}
+                    <i class="far fa-star"></i>
+                  {% endif %}
+                {% endfor %}
+                <span class="ms-2">({{ Shelf.get_average_rating|floatformat:1 }}/5.0)</span>
+                <small class="text-muted ms-2">{{ Shelf.get_review_count }}件のレビュー</small>
+              </div>
+              
+              <p class="card-text">{{ Shelf.text }}</p>
+              
+              <div class="d-flex gap-2 mb-3">
+                {% if user.is_authenticated %}
+                  <a href="{% url 'review' Shelf.pk %}" class="btn btn-primary">
+                    <i class="fas fa-pen me-1"></i>レビューを書く
+                  </a>
+                {% endif %}
+                
+                {% if user.is_authenticated and user == Shelf.user %}
+                  <a href="{% url 'update-book' Shelf.pk %}" class="btn btn-outline-primary">
+                    <i class="fas fa-edit me-1"></i>編集
+                  </a>
+                  <a href="{% url 'delete-book' Shelf.pk %}" class="btn btn-outline-danger">
+                    <i class="fas fa-trash me-1"></i>削除
+                  </a>
+                {% endif %}
+              </div>
+              
+              <small class="text-muted">
+                <i class="fas fa-user me-1"></i>投稿者: {{ Shelf.user.username }} | 
+                <i class="fas fa-calendar me-1"></i>登録日: {{ Shelf.created_at|date:"Y年m月d日" }}
+              </small>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- レビューセクション -->
+      <div class="card mt-4">
+        <div class="card-header">
+          <h3 class="mb-0"><i class="fas fa-comments me-2"></i>レビュー</h3>
+        </div>
+        <div class="card-body">
+          {% if reviews %}
+            {% for review in reviews %}
+              <div class="border-bottom pb-3 mb-3">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <h5 class="mb-1">{{ review.title }}</h5>
+                  <div class="rating-stars">
+                    {% for i in "12345" %}
+                      {% if forloop.counter <= review.rate %}
+                        <i class="fas fa-star"></i>
+                      {% else %}
+                        <i class="far fa-star"></i>
+                      {% endif %}
+                    {% endfor %}
+                    <span class="ms-1">({{ review.rate }}/5)</span>
+                  </div>
+                </div>
+                <p class="text-muted mb-2">{{ review.text }}</p>
+                <small class="text-muted">
+                  <i class="fas fa-user me-1"></i>{{ review.user.username }} | 
+                  <i class="fas fa-calendar me-1"></i>{{ review.created_at|date:"Y年m月d日" }}
+                </small>
+              </div>
+            {% endfor %}
+            
+            <!-- ページネーション -->
+            {% if reviews.has_other_pages %}
+              <nav aria-label="レビューページナビゲーション">
+                <ul class="pagination justify-content-center">
+                  {% if reviews.has_previous %}
+                    <li class="page-item">
+                      <a class="page-link" href="?page={{ reviews.previous_page_number }}">
+                        <i class="fas fa-angle-left"></i>
+                      </a>
+                    </li>
+                  {% endif %}
+                  
+                  {% for num in reviews.paginator.page_range %}
+                    {% if reviews.number == num %}
+                      <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                      </li>
+                    {% elif num > reviews.number|add:'-3' and num < reviews.number|add:'3' %}
+                      <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                      </li>
+                    {% endif %}
+                  {% endfor %}
+                  
+                  {% if reviews.has_next %}
+                    <li class="page-item">
+                      <a class="page-link" href="?page={{ reviews.next_page_number }}">
+                        <i class="fas fa-angle-right"></i>
+                      </a>
+                    </li>
+                  {% endif %}
+                </ul>
+              </nav>
+            {% endif %}
+          {% else %}
+            <div class="text-center py-4">
+              <i class="fas fa-comment-slash fa-3x text-muted mb-3"></i>
+              <h5 class="text-muted">レビューはまだありません</h5>
+              <p class="text-muted">最初のレビューを投稿してみませんか？</p>
+              {% if user.is_authenticated %}
+                <a href="{% url 'review' Shelf.pk %}" class="btn btn-primary">
+                  <i class="fas fa-pen me-1"></i>レビューを書く
+                </a>
+              {% endif %}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    
+    <!-- サイドバー -->
+    <div class="col-lg-4">
+      <!-- 類似書籍 -->
+      {% if similar_books %}
+        <div class="card mb-4">
+          <div class="card-header bg-info text-white">
+            <h5 class="mb-0"><i class="fas fa-lightbulb me-2"></i>おすすめ書籍</h5>
+          </div>
+          <div class="card-body">
+            {% for book in similar_books %}
+              <div class="d-flex align-items-center mb-3">
+                {% if book.thumbnail %}
+                  <img src="{{ book.thumbnail.url }}" class="rounded me-3" style="width: 60px; height: 80px; object-fit: cover;">
+                {% else %}
+                  <div class="bg-light rounded me-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 80px;">
+                    <i class="fas fa-book text-muted"></i>
+                  </div>
+                {% endif %}
+                <div class="flex-grow-1">
+                  <h6 class="mb-1 book-title">{{ book.title }}</h6>
+                  <div class="rating-stars small">
+                    {% for i in "12345" %}
+                      {% if forloop.counter <= book.avg_rating %}
+                        <i class="fas fa-star"></i>
+                      {% else %}
+                        <i class="far fa-star"></i>
+                      {% endif %}
+                    {% endfor %}
+                    <small class="text-muted ms-1">({{ book.avg_rating|floatformat:1 }})</small>
+                  </div>
+                  <a href="{% url 'detail-book' book.id %}" class="btn btn-sm btn-outline-primary mt-1">
+                    詳細
+                  </a>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+      
+      <!-- 統計情報 -->
+      <div class="card">
+        <div class="card-header bg-secondary text-white">
+          <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>統計情報</h5>
+        </div>
+        <div class="card-body">
+          <div class="row text-center">
+            <div class="col-6">
+              <div class="stats-card">
+                <h3 class="mb-0">{{ Shelf.get_average_rating|floatformat:1 }}</h3>
+                <small>平均評価</small>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="stats-card">
+                <h3 class="mb-0">{{ Shelf.get_review_count }}</h3>
+                <small>レビュー数</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="text-center mt-4">
+    <a href="{% url 'list-book' %}" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left me-1"></i>一覧に戻る
+    </a>
+  </div>
+{% endblock %}
