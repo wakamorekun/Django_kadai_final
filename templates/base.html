@@ -220,6 +220,11 @@
     <script>
       // お気に入りボタンの機能
       function toggleFavorite(bookId) {
+        const btn = $(`.favorite-btn[data-book-id="${bookId}"]`);
+        
+        // ボタンを一時的に無効化
+        btn.prop('disabled', true);
+        
         $.ajax({
           url: `/book/${bookId}/toggle-favorite/`,
           method: 'POST',
@@ -227,7 +232,6 @@
             'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
           },
           success: function(data) {
-            const btn = $(`.favorite-btn[data-book-id="${bookId}"]`);
             if (data.is_favorited) {
               btn.removeClass('inactive').addClass('active');
               btn.html('<i class="fas fa-heart"></i>');
@@ -235,6 +239,14 @@
               btn.removeClass('active').addClass('inactive');
               btn.html('<i class="far fa-heart"></i>');
             }
+          },
+          error: function(xhr, status, error) {
+            console.error('お気に入り更新エラー:', error);
+            alert('お気に入りの更新に失敗しました。ページを再読み込みしてください。');
+          },
+          complete: function() {
+            // ボタンを再度有効化
+            btn.prop('disabled', false);
           }
         });
       }

@@ -3,6 +3,7 @@ from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.views.decorators.http import require_POST
+from django.db import models
 
 # Create your views here.
 from django.views import generic
@@ -48,6 +49,19 @@ class ListBookView(generic.ListView):
         else:  # newest
             queryset = queryset.order_by('-created_at')
         
+        # お気に入り情報を事前に取得
+        if self.request.user.is_authenticated:
+            queryset = queryset.prefetch_related('favorites')
+            # お気に入り状態を注釈として追加
+            queryset = queryset.annotate(
+                is_favorited=models.Exists(
+                    Shelf.favorites.through.objects.filter(
+                        shelf_id=models.OuterRef('pk'),
+                        user_id=self.request.user.id
+                    )
+                )
+            )
+        
         return queryset
     
     def get_context_data(self, **kwargs):
@@ -61,6 +75,12 @@ class ListBookView(generic.ListView):
         context['search_query'] = self.request.GET.get('search', '')
         context['selected_category'] = self.request.GET.get('category', '')
         context['sort_by'] = self.request.GET.get('sort', 'newest')
+        
+        # お気に入り状態を各書籍に追加
+        if self.request.user.is_authenticated:
+            for book in context['Shelf']:
+                book.is_favorited_by = getattr(book, 'is_favorited', False)
+        
         return context
 
 class DetailBookView(generic.DetailView):
@@ -161,20 +181,26 @@ class DashboardView(LoginRequiredMixin, generic.TemplateView):
 @require_POST
 def toggle_favorite(request, book_id):
     """お気に入り登録/解除"""
-    book = get_object_or_404(Shelf, id=book_id)
-    user = request.user
-    
-    if book.favorites.filter(id=user.id).exists():
-        book.favorites.remove(user)
-        is_favorited = False
-    else:
-        book.favorites.add(user)
-        is_favorited = True
-    
-    return JsonResponse({
-        'is_favorited': is_favorited,
-        'favorite_count': book.favorites.count()
-    })
+    try:
+        book = get_object_or_404(Shelf, id=book_id)
+        user = request.user
+        
+        if book.favorites.filter(id=user.id).exists():
+            book.favorites.remove(user)
+            is_favorited = False
+        else:
+            book.favorites.add(user)
+            is_favorited = True
+        
+        return JsonResponse({
+            'is_favorited': is_favorited,
+            'favorite_count': book.favorites.count()
+        })
+    except Exception as e:
+        return JsonResponse({
+            'error': 'お気に入りの更新に失敗しました。',
+            'is_favorited': False
+        }, status=500)
 
 class FavoriteBooksView(LoginRequiredMixin, generic.ListView):
     template_name = 'book/favorite_books.html'

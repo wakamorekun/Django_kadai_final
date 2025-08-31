@@ -58,9 +58,9 @@
             <div class="col-md-6 col-lg-4 mb-4">
               <div class="card h-100">
                 {% if item.thumbnail %}
-                  <img src="{{ item.thumbnail.url }}" class="card-img-top" alt="{{ item.title }}" style="height: 200px; object-fit: cover;">
+                  <img src="{{ item.thumbnail.url }}" class="card-img-top" alt="{{ item.title }}" style="height: 300px; object-fit: contain; background-color: #f8f9fa;">
                 {% else %}
-                  <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                  <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 300px;">
                     <i class="fas fa-book fa-3x text-muted"></i>
                   </div>
                 {% endif %}
